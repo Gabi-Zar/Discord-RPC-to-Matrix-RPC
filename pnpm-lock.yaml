@@ -1,0 +1,53 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      arrpc:
+        specifier: github:Vencord/arrpc
+        version: https://codeload.github.com/Vencord/arrpc/tar.gz/1dc801e8ea14d96ce8dccff416417614f058afb8
+      dotenv:
+        specifier: ^18.0.3
+        version: 18.0.3
+
+packages:
+
+  arrpc@https://codeload.github.com/Vencord/arrpc/tar.gz/1dc801e8ea14d96ce8dccff416417614f058afb8:
+    resolution: {gitHosted: true, integrity: sha512-/hVH9ZN2J1S2uExkz/8DjsuskA3YYcWb9oXRyaRbPExybJkvx33bpZsWOIVqgZO85ihn4wb9J97JdeWO+HIhrQ==, tarball: https://codeload.github.com/Vencord/arrpc/tar.gz/1dc801e8ea14d96ce8dccff416417614f058afb8}
+    version: 3.7.0
+    hasBin: true
+
+  dotenv@18.0.3:
+    resolution: {integrity: sha512-/8CJTyL817qPnfbQrJgOEcrU3fDrJkRIoXBE566wHuvIXKOCHUZhPqGPbCPi9SogjdGnreF0TlvnTgK6J/8zpA==}
+    engines: {node: '>=12'}
+    hasBin: true
+
+  ws@8.22.0:
+    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+snapshots:
+
+  arrpc@https://codeload.github.com/Vencord/arrpc/tar.gz/1dc801e8ea14d96ce8dccff416417614f058afb8:
+    dependencies:
+      ws: 8.22.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  dotenv@18.0.3: {}
+
+  ws@8.22.0: {}
