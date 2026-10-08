@@ -1,12 +1,12 @@
 import "dotenv/config";
 import Server from "arrpc/src/server.js";
+import fs from "fs/promises";
 
 let activitiesCache = null;
+let getAppInfoQueue = [];
 let refreshTimeout;
 
-let getAppInfoQueue = [];
-
-const appCache = new Map();
+const appCache = await loadOrCreateAppCache();
 const activities = new Map();
 const arrpc = await new Server();
 
@@ -109,6 +109,7 @@ async function DiscordImageToMatrixImage(appId, iconId) {
 
         const { content_uri } = await matrixRes.json();
         appCache.get(appId).icon.matrixUrl = content_uri;
+        await storeAppCache();
         return content_uri;
     } catch (err) {
         console.warn(err);
@@ -124,6 +125,7 @@ async function getAppInfo(id) {
             console.log("nope");
             return false;
         }
+        console.log("fetching new data for app:", id);
         getAppInfoQueue.push(id);
         try {
             const res = await fetch("https://discordgate.com/api/tools/lookup/applications/add", {
@@ -142,11 +144,31 @@ async function getAppInfo(id) {
                 icon: { id: json?.botData?.icon },
             });
             getAppInfoQueue.splice(getAppInfoQueue.indexOf(id), 1);
+            await storeAppCache();
             return appCache.get(id);
         } catch (err) {
             console.warn(err);
             getAppInfoQueue.splice(getAppInfoQueue.indexOf(id), 1);
             return { name: id };
         }
+    }
+}
+
+async function loadOrCreateAppCache() {
+    try {
+        const map = new Map(Object.entries(JSON.parse(await fs.readFile("./appCache.json", "utf-8"))));
+        console.log("AppCache loaded from disk");
+        return map;
+    } catch (err) {
+        console.log("New appCache created");
+        return new Map();
+    }
+}
+
+async function storeAppCache() {
+    try {
+        await fs.writeFile("./appCache.json", JSON.stringify(Object.fromEntries(appCache)));
+    } catch (err) {
+        console.log("Error while writing appCache to disk", err);
     }
 }
