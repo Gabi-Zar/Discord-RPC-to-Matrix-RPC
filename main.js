@@ -3,6 +3,7 @@ import Server from "arrpc/src/server.js";
 import fs from "fs/promises";
 
 let activitiesCache = null;
+let activitiesNamesCache = [];
 let getAppInfoQueue = [];
 let refreshTimeout;
 
@@ -27,6 +28,9 @@ arrpc.on("activity", async (data) => {
     console.log(`Ongoing activities: ${activities.size}`);
     //console.log(JSON.stringify({ "xyz.extera.msc4544.rpc": parsedActivities }));
     await setMatrixRPC(parsedActivities);
+    if (process.env.USE_PRESENCE_STATUS === "true") {
+        await setMatrixStatus(parsedActivities);
+    }
 });
 
 async function parseActivities(activities) {
@@ -56,12 +60,23 @@ function hasActivitiesChanged(activities) {
     return true;
 }
 
+function hasActivitiesNamesChanged(activities) {
+    let activitiesNames = [];
+    for (const activity of activities) {
+        activitiesNames.push(activity.name);
+    }
+
+    if (activitiesNamesCache.length === activitiesNames.length && activitiesNamesCache.every((str, i) => str === activitiesNames[i])) return false;
+    activitiesNamesCache = activitiesNames;
+    return true;
+}
+
 async function setMatrixRPC(activities) {
     const url = `${process.env.SERVER_URL}/_matrix/client/v3/profile/${encodeURIComponent(process.env.MATRIX_USER_ID)}/xyz.extera.msc4544.rpc`;
     clearTimeout(refreshTimeout);
 
     if (activities.length === 0) {
-        let res = await fetch(url, {
+        const res = await fetch(url, {
             method: "DELETE",
             headers: {
                 Authorization: `Bearer ${process.env.TOKEN}`,
@@ -77,7 +92,7 @@ async function setMatrixRPC(activities) {
             })),
         });
 
-        let res = await fetch(url, {
+        const res = await fetch(url, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -87,6 +102,36 @@ async function setMatrixRPC(activities) {
         });
         console.log(res.status);
     }
+}
+
+async function setMatrixStatus(activities) {
+    if (!hasActivitiesNamesChanged(activities)) return;
+
+    const url = `${process.env.SERVER_URL}/_matrix/client/v3/presence/${encodeURIComponent(process.env.MATRIX_USER_ID)}/status`;
+
+    let statusMessage = "";
+    if (activities.length > 0) statusMessage = "Playing";
+    for (let i = 0; i < activities.length; i++) {
+        if (i > 0 && i === activities.length - 1) {
+            statusMessage = statusMessage.concat(" and");
+        }
+        statusMessage = statusMessage.concat(` ${activities[i].name}`);
+        if (i > 1 && i !== activities.length - 1) {
+            statusMessage = statusMessage.concat(",");
+        }
+    }
+
+    const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+            Authorization: `Bearer ${process.env.TOKEN}`,
+        },
+        body: JSON.stringify({
+            presence: "online",
+            status_msg: statusMessage,
+        }),
+    });
+    console.log(res.status);
 }
 
 async function DiscordImageToMatrixImage(appId, iconId) {
