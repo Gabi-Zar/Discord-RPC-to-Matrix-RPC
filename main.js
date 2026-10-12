@@ -3,7 +3,7 @@ import Server from "arrpc/src/server.js";
 import fs from "fs/promises";
 
 let activitiesCache = null;
-let activitiesNamesCache = [];
+let activityNamesCache = [];
 let getAppInfoQueue = [];
 let refreshTimeout;
 
@@ -20,17 +20,31 @@ arrpc.on("activity", async (data) => {
         activities.delete(key);
     }
 
-    const parsedActivities = await parseActivities(activities);
-
-    if (!parsedActivities) return;
-    if (!hasActivitiesChanged(parsedActivities)) return;
-
     console.log(`Ongoing activities: ${activities.size}`);
-    //console.log(JSON.stringify({ "xyz.extera.msc4544.rpc": parsedActivities }));
-    await setMatrixRPC(parsedActivities);
-    if (process.env.USE_PRESENCE_STATUS === "true") {
-        await setMatrixStatus(parsedActivities);
+    if (process.env.USE_PROFILE_FIELD === "true") {
+        const parsedActivities = await parseActivities(activities);
+        if (!parsedActivities) return;
+        if (!hasActivitiesChanged(parsedActivities)) return;
+        await setMatrixRPC(parsedActivities);
     }
+    if (process.env.USE_PRESENCE_STATUS === "true") {
+        const parsedActivityNames = await parseActivityNames(activities);
+        if (!parsedActivityNames) return;
+        if (!hasActivityNamesChanged(parsedActivityNames)) return;
+        await setMatrixStatus(parsedActivityNames);
+    }
+});
+
+process.on("SIGINT", async () => {
+    console.log("\nExiting cleanly");
+
+    if (process.env.USE_PROFILE_FIELD === "true") {
+        await setMatrixRPC([]);
+    }
+    if (process.env.USE_PRESENCE_STATUS === "true") {
+        await setMatrixStatus([]);
+    }
+    process.exit();
 });
 
 async function parseActivities(activities) {
@@ -54,20 +68,29 @@ async function parseActivities(activities) {
     return results;
 }
 
+async function parseActivityNames(activities) {
+    const results = [];
+    for (const activity of activities.values()) {
+        if (!activity.name) {
+            const appInfo = await getAppInfo(activity.application_id);
+            if (!appInfo) return false;
+            results.push(appInfo.name);
+        } else {
+            results.push(activity.name);
+        }
+    }
+    return results;
+}
+
 function hasActivitiesChanged(activities) {
     if (JSON.stringify(activities) === JSON.stringify(activitiesCache)) return false;
     activitiesCache = activities;
     return true;
 }
 
-function hasActivitiesNamesChanged(activities) {
-    let activitiesNames = [];
-    for (const activity of activities) {
-        activitiesNames.push(activity.name);
-    }
-
-    if (activitiesNamesCache.length === activitiesNames.length && activitiesNamesCache.every((str, i) => str === activitiesNames[i])) return false;
-    activitiesNamesCache = activitiesNames;
+function hasActivityNamesChanged(activityNames) {
+    if (activityNamesCache.length === activityNames.length && activityNamesCache.every((str, i) => str === activityNames[i])) return false;
+    activityNamesCache = activityNames;
     return true;
 }
 
@@ -105,8 +128,6 @@ async function setMatrixRPC(activities) {
 }
 
 async function setMatrixStatus(activities) {
-    if (!hasActivitiesNamesChanged(activities)) return;
-
     const url = `${process.env.SERVER_URL}/_matrix/client/v3/presence/${encodeURIComponent(process.env.MATRIX_USER_ID)}/status`;
 
     let statusMessage = "";
@@ -115,12 +136,12 @@ async function setMatrixStatus(activities) {
         if (i > 0 && i === activities.length - 1) {
             statusMessage = statusMessage.concat(" and");
         }
-        statusMessage = statusMessage.concat(` ${activities[i].name}`);
+        statusMessage = statusMessage.concat(` ${activities[i]}`);
         if (i > 1 && i !== activities.length - 1) {
             statusMessage = statusMessage.concat(",");
         }
     }
-
+    console.log(statusMessage);
     const res = await fetch(url, {
         method: "PUT",
         headers: {
@@ -163,7 +184,7 @@ async function DiscordImageToMatrixImage(appId, iconId) {
 }
 
 async function getAppInfo(id) {
-    if (appCache.get(id)) {
+    if (appCache.has(id)) {
         return appCache.get(id);
     } else {
         if (getAppInfoQueue.includes(id)) {
