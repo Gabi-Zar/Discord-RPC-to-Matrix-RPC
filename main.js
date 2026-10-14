@@ -62,10 +62,17 @@ async function parseActivities(activities) {
             id: activity.application_id,
             type: "xyz.extera.msc4544.rpc.activity",
             name: activity.name ?? appInfo.name,
-            large_icon_url: appInfo.icon.matrixUrl ?? (await DiscordImageToMatrixImage(activity.application_id, appInfo.icon.id)),
+            large_icon_url: await getAppImageMatrixUrl(
+                activity.application_id,
+                activity.assets?.large_image ?? `https://cdn.discordapp.com/app-icons/${activity.application_id}/${appInfo.icon.id}?size=128`,
+            ),
+            large_icon_tooltip: activity.assets?.large_text,
+            small_icon_url: await getAppImageMatrixUrl(activity.application_id, activity.assets?.small_image),
+            small_icon_tooltip: activity.assets?.small_text,
             details: activity.details,
             state: activity.state,
             since: activity.timestamps?.start,
+            until: activity.timestamps?.end,
         });
     }
     return results;
@@ -158,15 +165,21 @@ async function setMatrixStatus(activities) {
     console.log(res.status);
 }
 
-async function DiscordImageToMatrixImage(appId, iconId) {
+async function getAppImageMatrixUrl(appId, url) {
+    if (!url) return;
+
+    if (url in appCache.get(appId).icon) {
+        return appCache.get(appId).icon[url];
+    }
+
     try {
-        const imageRes = await fetch(`https://cdn.discordapp.com/app-icons/${appId}/${iconId}?size=128`);
+        const imageRes = await fetch(url);
         if (!imageRes.ok) return "";
 
         const contentType = imageRes.headers.get("content-type") ?? "image/png";
         const body = Buffer.from(await imageRes.arrayBuffer());
 
-        const matrixRes = await fetch(`${process.env.SERVER_URL}/_matrix/media/v3/upload?filename=${encodeURIComponent(iconId)}`, {
+        const matrixRes = await fetch(`${process.env.SERVER_URL}/_matrix/media/v3/upload?filename=${encodeURIComponent(crypto.randomUUID())}`, {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${process.env.TOKEN}`,
@@ -177,7 +190,7 @@ async function DiscordImageToMatrixImage(appId, iconId) {
         if (!matrixRes.ok) return "";
 
         const { content_uri } = await matrixRes.json();
-        appCache.get(appId).icon.matrixUrl = content_uri;
+        appCache.get(appId).icon[url] = content_uri;
         await storeAppCache();
         return content_uri;
     } catch (err) {
