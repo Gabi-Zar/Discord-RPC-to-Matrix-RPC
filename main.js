@@ -35,7 +35,7 @@ arrpc.on("activity", async (data) => {
     }
 });
 
-process.on("SIGINT", async () => {
+async function cleanup() {
     console.log("\nExiting cleanly");
 
     if (process.env.USE_PROFILE_FIELD === "true") {
@@ -45,7 +45,10 @@ process.on("SIGINT", async () => {
         await setMatrixStatus([]);
     }
     process.exit();
-});
+}
+
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
 
 async function parseActivities(activities) {
     const results = [];
