@@ -58,22 +58,40 @@ async function parseActivities(activities) {
         const appInfo = await getAppInfo(activity.application_id);
         if (!appInfo) return false;
 
-        results.push({
-            id: activity.application_id,
-            type: "xyz.extera.msc4544.rpc.activity",
-            name: activity.name ?? appInfo.name,
-            large_icon_url: await getAppImageMatrixUrl(
-                activity.application_id,
-                activity.assets?.large_image ?? `https://cdn.discordapp.com/app-icons/${activity.application_id}/${appInfo.icon.id}?size=128`,
-            ),
-            large_icon_tooltip: activity.assets?.large_text,
-            small_icon_url: await getAppImageMatrixUrl(activity.application_id, activity.assets?.small_image),
-            small_icon_tooltip: activity.assets?.small_text,
-            details: activity.details,
-            state: activity.state,
-            since: activity.timestamps?.start,
-            until: activity.timestamps?.end,
-        });
+        if (activity.type === 2) {
+            results.push({
+                id: activity.application_id,
+                type: "xyz.extera.msc4544.rpc.music",
+                track: activity.details,
+                artist: activity.state,
+                album: activity.assets?.large_text.replace("album: ", ""),
+                cover_url: await getAppImageMatrixUrl(
+                    activity.application_id,
+                    activity.assets?.large_image ?? `https://cdn.discordapp.com/app-icons/${activity.application_id}/${appInfo.icon.id}?size=128`,
+                ),
+                progress: {
+                    since: activity.timestamps?.start,
+                    until: activity.timestamps?.end,
+                },
+            });
+        } else {
+            results.push({
+                id: activity.application_id,
+                type: "xyz.extera.msc4544.rpc.activity",
+                name: activity.name ?? appInfo.name,
+                large_icon_url: await getAppImageMatrixUrl(
+                    activity.application_id,
+                    activity.assets?.large_image ?? `https://cdn.discordapp.com/app-icons/${activity.application_id}/${appInfo.icon.id}?size=128`,
+                ),
+                large_icon_tooltip: activity.assets?.large_text,
+                small_icon_url: await getAppImageMatrixUrl(activity.application_id, activity.assets?.small_image),
+                small_icon_tooltip: activity.assets?.small_text,
+                details: activity.details,
+                state: activity.state,
+                since: activity.timestamps?.start,
+                until: activity.timestamps?.end,
+            });
+        }
     }
     return results;
 }
