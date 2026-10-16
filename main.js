@@ -58,6 +58,7 @@ async function parseActivities(activities) {
         const appInfo = await getAppInfo(activity.application_id);
         if (!appInfo) return false;
 
+        if (activity.type === 2 && process.env.PROCESS_MUSIC === "false") return results;
         if (activity.type === 2) {
             results.push({
                 id: activity.application_id,
@@ -99,6 +100,7 @@ async function parseActivities(activities) {
 async function parseActivityNames(activities) {
     const results = [];
     for (const activity of activities.values()) {
+        if (activity.type !== 0) continue;
         if (!activity.name) {
             const appInfo = await getAppInfo(activity.application_id);
             if (!appInfo) return false;
